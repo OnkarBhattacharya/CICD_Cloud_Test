@@ -105,69 +105,169 @@ The PoC consists of:
    cd cloud-testing-poc
    ```
 
-2. **Set up the backend**
+2. **Set up the backend (create venv and install deps)**
    ```bash
    cd user-service
+   # Create the venv (Windows: prefer `py -3` if available)
+   py -3 -m venv venv
+   # or (if py launcher not available)
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
+
+   # Activate the venv (see Activation notes below) then:
+   python -m pip install --upgrade pip
+   python -m pip install -r requirements.txt
    ```
 
-3. **Set up the frontend**
-   ```bash
-   cd frontend
-   pnpm install
-   ```
+# Activation notes (Windows / macOS / Linux)
+- PowerShell (Windows)
+  ```powershell
+  # Allow activation for this session if needed:
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+  .\venv\Scripts\Activate.ps1
+  ```
+- Command Prompt (Windows)
+  ```cmd
+  venv\Scripts\activate
+  ```
+- Git Bash (Windows)
+  ```bash
+  # Git Bash uses Unix-style paths but venv on Windows places scripts in Scripts/
+  source venv/Scripts/activate
+  ```
+- WSL / macOS / Linux
+  ```bash
+  source venv/bin/activate
+  ```
 
-### Running Tests
+# Troubleshooting
+- If "Python was not found" on Windows:
+  - Install from https://www.python.org/downloads/windows and check "Add Python to PATH", or
+  - Disable the Microsoft Store Python app execution aliases: Settings > Apps > Advanced app settings > App execution aliases (turn off "python" / "py"), then reopen the terminal.
+- If commands like `python` are not recognized even after installing, use the venv interpreter explicitly:
+  - Windows example: `.\venv\Scripts\python.exe <script>`
+  - Or use the py launcher: `py -3 <script>`
+- If you see "Could not open requirements file" — ensure you run the install command from the folder that contains requirements.txt (usually `user-service`), or give the correct relative path:
+  ```powershell
+  # from e2e-tests folder, install using the requirements in user-service
+  py -3 -m pip install -r ..\user-service\requirements.txt
+  ```
 
-#### Backend Tests
+### Running Tests (backend)
 ```bash
 cd user-service
+
+# 1) Ensure the virtual environment exists:
+py -3 -m venv venv  # preferred on Windows
+# or
+python -m venv venv
+
+# 2) Activate the venv for your shell (PowerShell shown)
+# PowerShell (Windows)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+.\venv\Scripts\Activate.ps1
+
+# Command Prompt (Windows)
+venv\Scripts\activate
+
+# Git Bash (Windows)
+source venv/Scripts/activate
+
+# WSL / macOS / Linux
 source venv/bin/activate
 
-# Unit tests
+# 3) Install dependencies into the activated venv
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+# If pytest is not present in requirements.txt:
+python -m pip install pytest
+
+# 4) Verify pytest is installed
+# POSIX (bash / macOS / WSL):
+python -m pip list | grep -i pytest || python -m pytest --version
+# PowerShell:
+python -m pip show pytest -ErrorAction SilentlyContinue
+if ($LASTEXITCODE -ne 0) { python -m pytest --version }
+
+# 5) Run tests
 python -m pytest tests/test_user_unit.py -v
-
-# Integration tests
 python -m pytest tests/test_user_integration.py -v
-
-# Contract tests
 python -m pytest tests/test_user_contract.py -v
-
-# Performance tests
 python -m pytest tests/test_performance.py -v
-
-# All backend tests
 python -m pytest tests/ -v
 ```
 
-#### Frontend Tests
+### Common troubleshooting: "No module named pytest"
+- Activate the venv in the same terminal where you run pytest.
+- Confirm the active python executable:
+  - PowerShell: `where.exe python`
+  - macOS/Linux: `which python`
+- Check installed packages: `python -m pip list`
+- Install pytest into the active venv: `python -m pip install pytest`
+
+### E2E Tests (requires running application)
 ```bash
-cd frontend
-
-# Run tests
-pnpm test
-
-# Run tests with UI
-pnpm test:ui
-```
-
-#### E2E Tests (requires running application)
-```bash
-# Start the application first
+# 1) Start the backend application (from user-service)
 cd user-service
-source venv/bin/activate
-python src/main.py
+# Activate venv (PowerShell example)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+.\venv\Scripts\Activate.ps1
 
-# In another terminal, run E2E tests
-cd e2e-tests
+# Run the backend
+python src/main.py
+# or explicitly:
+.\venv\Scripts\python.exe src/main.py
+
+# 2) In another terminal run E2E tests
+# Activate the same venv in the new terminal (PowerShell example)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+.\venv\Scripts\Activate.ps1
+
+# Ensure E2E dependencies are installed (selenium, webdriver-manager)
+python -m pip install selenium webdriver-manager
+
+# From inside the e2e-tests folder (PowerShell)
+```powershell
+# Activate the venv for this session (if using a venv in user-service)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+..\user-service\venv\Scripts\Activate.ps1
+
+```
+# Run the test file from the current folder
+```powershell
 python test_e2e.py
+# or, if 'python' is not recognized:
+.\..\user-service\venv\Scripts\python.exe test_e2e.py
 ```
 
-### Running with Docker Compose
+# From the repository root (PowerShell)
+```powershell
+# Activate the venv (user-service)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+.\user-service\venv\Scripts\Activate.ps1
 
+# Run the test file by path from repo root
+python e2e-tests\test_e2e.py
+# or explicit venv interpreter
+.\user-service\venv\Scripts\python.exe e2e-tests\test_e2e.py
+```
+
+Notes:
+- Avoid using shell-specific operators like `|| true` or `grep` in PowerShell; README now shows cross-platform alternatives and PowerShell-safe commands.
+- If a module (e.g. selenium) is missing: activate the venv and run `python -m pip install selenium webdriver-manager`.
+- In VS Code, select the venv via "Python: Select Interpreter" so the integrated terminal and test runner use the same environment.
+
+
+### Running with Docker Compose (from userßservice, i.e backend)
 ```bash
+# start Docker Desktop app
+Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+
+# Verify Docker availibility 
+docker version
+docker info
+docker compose version
+
 # Run all services and tests
 docker-compose up --build
 
