@@ -1,0 +1,117 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  imageName: 'azure-devops-cicd-demo'
+  containerRegistry: 'yourContainerRegistry'                  # e.g. myacr.azurecr.io (replace)
+  containerRegistryServiceConnection: 'ACR-Service-Conn'      # replace with your service connection name
+  kubernetesNamespace: 'default'
+  kubernetesServiceConnection: 'AKS-Service-Conn'             # replace with your service connection name
+  buildId: $(Build.BuildId)
+
+stages:
+- stage: Build
+  displayName: Build and Publish Image
+  jobs:
+  - job: Build
+    displayName: Install | Build | Push
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '14.x'
+      displayName: 'Use Node 14'
+    - task: Cache@2
+      inputs:
+        key: 'npm | "$(Agent.OS)" | package-lock.json'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+        path: $(Pipeline.Workspace)/.npm
+      displayName: 'Cache npm'
+    - script: |
+        npm ci
+      displayName: 'Install dependencies'
+    - script: npm run build
+      displayName: 'Build (tsc)'
+    - task: Docker@2
+      displayName: 'Build and push image'
+      inputs:
+        containerRegistry: $(containerRegistryServiceConnection)
+        repository: $(containerRegistry)/$(imageName)
+        command: buildAndPush
+        Dockerfile: Dockerfile
+        tags: |
+          $(buildId)
+
+- stage: Test
+  displayName: Run tests (parallel)
+  dependsOn: Build
+  jobs:
+  - job: UnitTests
+    displayName: Unit tests (with retry)
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: |
+        npm ci --only=development || true
+        n=0
+        max=2
+        until [ $n -ge $max ]
+        do
+          npm run test:unit && exit 0
+          n=$((n+1))
+          echo "Unit tests attempt #$n failed — retrying..."
+          sleep 2
+        done
+        echo "Unit tests failed after $max attempts."
+        exit 1
+      displayName: 'Run unit tests (retry up to 2)'
+  - job: IntegrationTests
+    displayName: Integration tests
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: |
+        npm ci --only=development || true
+        npm run test:integration
+      displayName: 'Run integration tests'
+
+- stage: Deploy
+  displayName: Deploy to Kubernetes
+  dependsOn: Test
+  condition: succeeded()
+  jobs:
+  - deployment: DeployToK8s
+    displayName: Deploy to AKS
+    environment:
+      name: 'production'
+      resourceType: 'Kubernetes'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: Kubernetes@1
+            displayName: 'kubectl apply manifest'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(kubernetesServiceConnection)
+              namespace: $(kubernetesNamespace)
+              command: apply
+              useConfigurationFile: true
+              configuration: infra/kubernetes/deployment.yaml
+              secretType: 'dockerRegistry'
+          - script: |
+              echo "Deployed image: $(containerRegistry)/$(imageName):$(buildId)"
+            displayName: 'Confirm deployment'

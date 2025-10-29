@@ -1,0 +1,42 @@
+parameters:
+  - name: imageName
+    type: string
+    default: 'myapp'
+  - name: namespace
+    type: string
+    default: 'default'
+
+jobs:
+  - job: Deploy
+    displayName: 'Deploy to Kubernetes'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      - task: Kubernetes@1
+        displayName: 'Deploy to Kubernetes'
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: 'your-kubernetes-service-connection'
+          namespace: '${{ parameters.namespace }}'
+          command: 'apply'
+          useConfigurationFile: true
+          configuration: '$(System.DefaultWorkingDirectory)/infra/kubernetes/deployment.yaml'
+          arguments: '-f $(System.DefaultWorkingDirectory)/infra/kubernetes/service.yaml'
+          
+      - task: HelmInstaller@1
+        displayName: 'Install Helm'
+        inputs:
+          helmVersionToInstall: 'latest'
+
+      - task: HelmDeploy@0
+        displayName: 'Deploy with Helm'
+        inputs:
+          azureSubscription: 'your-azure-subscription'
+          azureResourceGroup: 'your-resource-group'
+          kubernetesCluster: 'your-kubernetes-cluster'
+          namespace: '${{ parameters.namespace }}'
+          command: 'upgrade'
+          chartType: 'FilePath'
+          chartPath: '$(System.DefaultWorkingDirectory)/infra/helm'
+          releaseName: '${{ parameters.imageName }}'
+          overrideValues: 'image.tag=$(Build.BuildId)'

@@ -1,0 +1,22 @@
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '14.x'
+- script: |
+    npm install
+  displayName: 'Install Dependencies'
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'YourAzureSubscription'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      echo "Running static code analysis..."
+      npm run lint
+  displayName: 'Run Linting'
+- script: |
+    npm test
+  displayName: 'Run Unit Tests'
+- script: |
+    npm run test:integration
+  displayName: 'Run Integration Tests'

@@ -1,0 +1,38 @@
+name: azure-devops-cicd-demo
+version: 0.1.0
+description: A demo project showcasing CI/CD integration practices with Azure DevOps for cloud-native applications.
+
+# Application configuration
+replicaCount: 1
+
+image:
+  repository: your-docker-repo/azure-devops-cicd-demo
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: true
+  name: azure-devops-cicd-demo
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: false
+  name: ""
+  path: /
+  pathType: ImplementationSpecific
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - /
+  tls: []  # Treated as an array of objects
+
+resources: {}
+  
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

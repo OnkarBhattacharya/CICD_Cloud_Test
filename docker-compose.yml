@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Backend service
+  backend:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+    volumes:
+      - ./user-service/src/database:/app/src/database
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/users"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend build and serve (for production-like testing)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=production
+
+  # Test runner service
+  test-runner:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile.test
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - PYTHONPATH=/app
+      - APP_URL=http://backend:5000
+    volumes:
+      - ./user-service:/app
+      - ./e2e-tests:/app/e2e-tests
+    command: >
+      sh -c "
+        echo 'Running unit tests...' &&
+        python -m pytest tests/test_user_unit.py -v &&
+        echo 'Running integration tests...' &&
+        python -m pytest tests/test_user_integration.py -v &&
+        echo 'Running contract tests...' &&
+        python -m pytest tests/test_user_contract.py -v &&
+        echo 'Running performance tests...' &&
+        python -m pytest tests/test_performance.py -v &&
+        echo 'All tests completed!'
+      "
+
+  # E2E test service
+  e2e-tests:
+    build:
+      context: ./e2e-tests
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    environment:
+      - APP_URL=http://frontend:3000
+    volumes:
+      - ./e2e-tests:/app/tests
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 30 &&
+        echo 'Running E2E tests...' &&
+        python -m pytest test_e2e.py -v
+      "
+
+networks:
+  default:
+    driver: bridge
+
