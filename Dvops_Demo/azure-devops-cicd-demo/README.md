@@ -7,91 +7,97 @@ This project demonstrates the integration of Continuous Integration and Continuo
 ```
 azure-devops-cicd-demo
 ├── src
-│   ├── app.ts                # Entry point of the application
+│   ├── app.ts                # Express application entry point
 │   ├── controllers           # Contains route controllers
-│   │   └── index.ts          # Index controller for handling routes
-│   ├── services              # Contains business logic
-│   │   └── index.ts          # Service class for business logic
-│   └── types                 # Type definitions
-│       └── index.ts          # Request and response interfaces
+│   │   └── index.ts         # Index controller with welcome endpoint
+│   ├── services             # Business logic services
+│   └── types                # TypeScript type definitions
 ├── test
-│   ├── unit                  # Unit tests
-│   │   └── app.spec.ts       # Unit tests for app.ts
-│   └── integration           # Integration tests
-│       └── integration.spec.ts # Integration tests for component interactions
-├── infra
-│   ├── kubernetes            # Kubernetes configurations
-│   │   ├── deployment.yaml    # Deployment configuration
-│   │   ├── service.yaml       # Service configuration
-│   │   └── ingress.yaml       # Ingress configuration
-│   └── helm                  # Helm chart configurations
-│       ├── Chart.yaml         # Helm chart metadata
-│       └── values.yaml        # Helm chart values
-├── .azure-pipelines           # Azure Pipelines configurations
-│   ├── azure-pipelines.yml     # Main CI/CD pipeline configuration
-│   └── templates              # Pipeline templates
-│       ├── pr.yml            # Pull request pipeline template
-│       ├── build.yml         # Build pipeline template
-│       └── deploy.yml        # Deployment pipeline template
-├── Dockerfile                 # Docker image build instructions
-├── .gitignore                 # Git ignore file
-├── package.json               # npm configuration file
-├── tsconfig.json             # TypeScript configuration file
-├── jest.config.js            # Jest configuration file
-└── README.md                 # Project documentation
+│   ├── unit                 # Unit tests
+│   │   └── app.spec.ts      # Tests for main application
+│   └── integration          # Integration tests
+│       └── integration.spec.ts # API endpoint tests
+├── dist                     # Compiled JavaScript output
+├── package.json             # Project dependencies and scripts
+├── tsconfig.json           # TypeScript configuration
+└── README.md               # Project documentation
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js and npm installed
-- Docker installed
-- Access to Azure DevOps
+- Node.js 18+ and npm installed
+- TypeScript installed globally (`npm install -g typescript`)
+- Git for version control
 
 ### Installation
 
 1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd azure-devops-cicd-demo
-   ```
+```bash
+git clone <repository-url>
+cd azure-devops-cicd-demo
+```
 
 2. Install dependencies:
-   ```
-   npm install
-   ```
-
-### Running the Application
-
-To run the application locally, use the following command:
+```bash
+npm install
 ```
+
+### Development
+
+Build the TypeScript code:
+```bash
+npm run build
+```
+
+Start the application:
+```bash
 npm start
 ```
 
+The application will be available at `http://localhost:3000`
+
 ### Running Tests
 
-To run unit tests, use:
-```
+Run all tests:
+```bash
 npm test
 ```
 
-### CI/CD Pipeline
+Run specific test suites:
+```bash
+npm run test:unit        # Unit tests only
+npm run test:integration # Integration tests only
+```
 
-This project is configured with Azure DevOps for CI/CD. The pipeline includes stages for building, testing, and deploying the application. 
+### API Endpoints
 
-- **Build Stage:** Compiles the application and runs unit tests.
-- **Test Stage:** Executes integration tests.
-- **Deploy Stage:** Deploys the application to a Kubernetes cluster.
+- `GET /`: Returns welcome message
+  - Response: `{ "message": "Welcome to the CI/CD Demo Application!" }`
 
-### Deployment
+### Project Configuration
 
-The application can be deployed using Helm charts defined in the `infra/helm` directory. Ensure that your Kubernetes cluster is set up and accessible.
+- **TypeScript Configuration** (`tsconfig.json`):
+  - Targets ES6
+  - Uses CommonJS modules
+  - Outputs to `./dist` directory
+  - Includes both source and test files
+
+- **Package Scripts**:
+  - `build`: Compiles TypeScript to JavaScript
+  - `start`: Runs the compiled application
+  - `test`: Runs all tests
+  - `test:unit`: Runs unit tests
+  - `test:integration`: Runs integration tests
 
 ### Contributing
 
-Contributions are welcome! Please submit a pull request or open an issue for any enhancements or bug fixes.
+1. Create a feature branch
+2. Make your changes
+3. Run tests to ensure everything works
+4. Submit a pull request
 
 ### License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License.

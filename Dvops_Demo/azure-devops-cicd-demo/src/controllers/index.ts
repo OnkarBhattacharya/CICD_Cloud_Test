@@ -1,7 +1,7 @@
+import { Request, Response } from 'express';
+
 export class IndexController {
     public getIndex(req: Request, res: Response): void {
-        res.send('Welcome to the CI/CD Demo Application!');
+        res.status(200).json({ message: 'Welcome to the CI/CD Demo Application!' });
     }
-
-    // Additional route handlers can be added here
 }

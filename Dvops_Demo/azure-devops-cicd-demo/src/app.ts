@@ -1,18 +1,14 @@
-import express from 'express';
-import { IndexController } from './controllers/index';
+import express, { Application } from 'express';
+import { IndexController } from './controllers';
 
-const app = express();
-const port = process.env.PORT || 3000;
+const app: Application = express();
+const indexController = new IndexController();
 
-// Middleware
+// Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-const indexController = new IndexController();
-app.get('/', indexController.getIndex.bind(indexController));
+app.get('/', (req, res) => indexController.getIndex(req, res));
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
-});
+export { app };
