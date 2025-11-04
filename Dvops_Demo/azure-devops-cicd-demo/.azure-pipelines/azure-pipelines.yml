@@ -12,10 +12,10 @@ pr:
 
 variables:
   imageName: 'azure-devops-cicd-demo'
-  containerRegistry: 'yourContainerRegistry'                  # e.g. myacr.azurecr.io (replace)
-  containerRegistryServiceConnection: 'ACR-Service-Conn'      # replace with your service connection name
+  containerRegistry: 'cloudtest.azurecr.io'                  # e.g. myacr.azurecr.io (replace)
+  containerRegistryServiceConnection: 'Test'      # replace with your service connection name
   kubernetesNamespace: 'default'
-  kubernetesServiceConnection: 'AKS-Service-Conn'             # replace with your service connection name
+  kubernetesServiceConnection: 'TestKubernetes'             # replace with your service connection name
   buildId: $(Build.BuildId)
 
 stages:
