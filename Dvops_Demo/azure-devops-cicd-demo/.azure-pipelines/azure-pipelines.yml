@@ -12,10 +12,18 @@ pr:
 
 variables:
   imageName: 'azure-devops-cicd-demo'
-  containerRegistry: 'yourContainerRegistry'                  # e.g. myacr.azurecr.io (replace)
+  # Replace the following with your Container Registry (ACR) login server, e.g. myacr.azurecr.io
+  containerRegistry: 'myacr.azurecr.io'                      # e.g. myacr.azurecr.io (replace)
+  # Service connection name for Azure Container Registry (replace with your service connection)
   containerRegistryServiceConnection: 'ACR-Service-Conn'      # replace with your service connection name
   kubernetesNamespace: 'default'
+  # Service connection name for the AKS subscription/resource (replace with your service connection)
   kubernetesServiceConnection: 'AKS-Service-Conn'             # replace with your service connection name
+  # Azure resource group and AKS cluster name used when using Azure Resource Manager connectionType
+  azureResourceGroup: 'myResourceGroup'                       # replace with your resource group
+  kubernetesCluster: 'myAksCluster'                           # replace with your AKS cluster name
+  # Deployment name in Kubernetes (metadata.name in deployment.yaml)
+  k8sDeployment: 'azure-devops-cicd-demo'
   buildId: $(Build.BuildId)
 
 stages:
@@ -29,8 +37,9 @@ stages:
     steps:
     - task: NodeTool@0
       inputs:
-        versionSpec: '14.x'
-      displayName: 'Use Node 14'
+        # Use an LTS Node version for builds in CI. Update if you require a different runtime.
+        versionSpec: '18.x'
+      displayName: 'Use Node 18 (LTS)'
     - task: Cache@2
       inputs:
         key: 'npm | "$(Agent.OS)" | package-lock.json'
@@ -63,7 +72,8 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - script: |
-        npm ci --only=development || true
+        # Install dev dependencies for tests. Fail the job if install fails so CI surfaces legitimate issues.
+        npm ci --only=development
         n=0
         max=2
         until [ $n -ge $max ]
@@ -107,11 +117,45 @@ stages:
             inputs:
               connectionType: 'Azure Resource Manager'
               azureSubscriptionEndpoint: $(kubernetesServiceConnection)
+              azureResourceGroup: $(azureResourceGroup)
+              kubernetesCluster: $(kubernetesCluster)
               namespace: $(kubernetesNamespace)
               command: apply
               useConfigurationFile: true
               configuration: infra/kubernetes/deployment.yaml
               secretType: 'dockerRegistry'
+          - task: Kubernetes@1
+            displayName: 'kubectl login (prepare kubeconfig for script steps)'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(kubernetesServiceConnection)
+              azureResourceGroup: $(azureResourceGroup)
+              kubernetesCluster: $(kubernetesCluster)
+              command: 'login'
+          - script: |
+              set -euo pipefail
+              TARGET_IMAGE="$(containerRegistry)/$(imageName):$(buildId)"
+              echo "Checking current image for deployment '$(k8sDeployment)' in namespace '$(kubernetesNamespace)'..."
+              CURRENT_IMAGE=$(kubectl get deployment $(k8sDeployment) -n $(kubernetesNamespace) -o jsonpath='{.spec.template.spec.containers[0].image}' || echo "")
+              echo "Current image: ${CURRENT_IMAGE}"
+              if [ "${CURRENT_IMAGE}" = "${TARGET_IMAGE}" ]; then
+                echo "Image already matches target (${TARGET_IMAGE}) - skipping set image."
+              else
+                echo "Updating deployment $(k8sDeployment) image to ${TARGET_IMAGE}"
+                kubectl set image deployment/$(k8sDeployment) $(k8sDeployment)=${TARGET_IMAGE} -n $(kubernetesNamespace)
+              fi
+            displayName: 'Set image if different (idempotent)'
+          - task: Kubernetes@1
+            displayName: 'kubectl rollout status (wait for rollout)'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(kubernetesServiceConnection)
+              azureResourceGroup: $(azureResourceGroup)
+              kubernetesCluster: $(kubernetesCluster)
+              namespace: $(kubernetesNamespace)
+              command: 'rollout'
+              # Wait up to 5 minutes (300s) for the rollout to complete. Adjust timeout as needed.
+              arguments: 'status deployment/$(k8sDeployment) --timeout=300s'
           - script: |
               echo "Deployed image: $(containerRegistry)/$(imageName):$(buildId)"
             displayName: 'Confirm deployment'

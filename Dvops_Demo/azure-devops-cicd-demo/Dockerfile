@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for smaller runtime image
-FROM node:14 AS builder
+FROM node:18 AS builder
 WORKDIR /usr/src/app
 
 # Copy package files first to leverage layer caching
@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # Runtime image
-FROM node:14-alpine AS runner
+FROM node:18-alpine AS runner
 WORKDIR /usr/src/app
 ENV NODE_ENV=production
 

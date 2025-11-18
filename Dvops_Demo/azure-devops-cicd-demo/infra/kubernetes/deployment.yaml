@@ -14,9 +14,12 @@ spec:
       labels:
         app: azure-devops-cicd-demo
     spec:
+      imagePullSecrets:
+      - name: regcred  # create this secret in the namespace to pull from your private registry
       containers:
       - name: azure-devops-cicd-demo
-        image: <your-docker-image>:<tag>
+        # Replace the example below with your registry/image:tag or update via CI pipeline.
+        image: myacr.azurecr.io/azure-devops-cicd-demo:latest
         ports:
         - containerPort: 3000
         env:
