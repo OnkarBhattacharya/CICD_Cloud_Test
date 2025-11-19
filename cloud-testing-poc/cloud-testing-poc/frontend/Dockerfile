@@ -1,4 +1,5 @@
-FROM node:18-alpine
+# Stage 1: Build
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -6,8 +7,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # Install pnpm and dependencies
-RUN npm install -g pnpm
-RUN pnpm install
+RUN npm install -g pnpm && pnpm install
 
 # Copy source code
 COPY . .
@@ -15,12 +15,18 @@ COPY . .
 # Build the application
 RUN pnpm run build
 
-# Install serve to serve the built application
-RUN npm install -g serve
+# Stage 2: Serve
+FROM nginx:alpine
+
+# Copy built assets from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy custom nginx config if needed (optional, using default for now but good to have placeholder)
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
-EXPOSE 3000
+EXPOSE 80
 
-# Serve the built application
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
 

@@ -1,29 +1,151 @@
-# Docker
-# Build a Docker image
-# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
-
 trigger:
 - main
 
-resources:
-- repo: self
-
 variables:
+  # Container registry service connection name (Create this in Azure DevOps Project Settings)
+  dockerRegistryServiceConnection: 'AzureContainerRegistry'
+  # Name of the image repository
+  backendImageRepository: 'user-service'
+  frontendImageRepository: 'frontend'
+  containerRegistry: 'your-acr-name.azurecr.io'
+  dockerfilePathBackend: '$(Build.SourcesDirectory)/cloud-testing-poc/cloud-testing-poc/user-service/Dockerfile'
+  dockerfilePathFrontend: '$(Build.SourcesDirectory)/cloud-testing-poc/cloud-testing-poc/frontend/Dockerfile'
   tag: '$(Build.BuildId)'
+  
+  # Agent VM image type
+  vmImageName: 'ubuntu-latest'
 
 stages:
-- stage: Build
-  displayName: Build image
+- stage: Backend_CI
+  displayName: Backend CI
   jobs:
-  - job: Build
-    displayName: Build
+  - job: BuildAndTest
+    displayName: Build and Test Backend
     pool:
-      vmImage: ubuntu-latest
+      vmImage: $(vmImageName)
     steps:
-    - task: Docker@2
-      displayName: Build an image
+    - task: UsePythonVersion@0
       inputs:
-        command: build
-        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+        versionSpec: '3.11'
+      displayName: 'Use Python 3.11'
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r cloud-testing-poc/cloud-testing-poc/user-service/requirements.txt
+        pip install pytest pytest-azurepipelines flake8 black
+      displayName: 'Install dependencies'
+
+    - script: |
+        flake8 cloud-testing-poc/cloud-testing-poc/user-service/src
+        black --check cloud-testing-poc/cloud-testing-poc/user-service/src
+      displayName: 'Run Linting'
+      continueOnError: true
+
+    - script: |
+        export PYTHONPATH=$PYTHONPATH:$(Build.SourcesDirectory)/cloud-testing-poc/cloud-testing-poc/user-service
+        pytest cloud-testing-poc/cloud-testing-poc/user-service/tests/ --junitxml=junit/test-results.xml
+      displayName: 'Run Tests'
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFiles: '**/test-results.xml'
+        testRunTitle: 'Backend Tests'
+
+    - task: Docker@2
+      displayName: Build and Push Backend Image
+      condition: succeeded()
+      inputs:
+        command: buildAndPush
+        repository: $(backendImageRepository)
+        dockerfile: $(dockerfilePathBackend)
+        containerRegistry: $(dockerRegistryServiceConnection)
         tags: |
           $(tag)
+          latest
+
+- stage: Frontend_CI
+  displayName: Frontend CI
+  jobs:
+  - job: BuildAndTest
+    displayName: Build and Test Frontend
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        npm install -g pnpm
+        cd cloud-testing-poc/cloud-testing-poc/frontend
+        pnpm install
+      displayName: 'Install dependencies'
+
+    - script: |
+        cd cloud-testing-poc/cloud-testing-poc/frontend
+        pnpm run lint
+      displayName: 'Run Linting'
+      continueOnError: true
+
+    - script: |
+        cd cloud-testing-poc/cloud-testing-poc/frontend
+        pnpm test run --reporter=junit --outputFile=test-results.xml
+      displayName: 'Run Unit Tests'
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test-results.xml'
+        testRunTitle: 'Frontend Tests'
+
+    - task: Docker@2
+      displayName: Build and Push Frontend Image
+      condition: succeeded()
+      inputs:
+        command: buildAndPush
+        repository: $(frontendImageRepository)
+        dockerfile: $(dockerfilePathFrontend)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          latest
+
+- stage: Deploy
+  displayName: Deploy to Azure
+  dependsOn: [Backend_CI, Frontend_CI]
+  condition: succeeded()
+  jobs:
+  - deployment: DeployBackend
+    displayName: Deploy Backend
+    environment: 'production-backend'
+    pool:
+      vmImage: $(vmImageName)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebApp@1
+            displayName: 'Deploy Backend App Service'
+            inputs:
+              azureSubscription: 'AzureSubscriptionConnection' # Replace with your Service Connection
+              appName: 'your-backend-app-service-name' # Replace with your App Service name
+              containers: $(containerRegistry)/$(backendImageRepository):$(tag)
+
+  - deployment: DeployFrontend
+    displayName: Deploy Frontend
+    environment: 'production-frontend'
+    pool:
+      vmImage: $(vmImageName)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebApp@1
+            displayName: 'Deploy Frontend App Service'
+            inputs:
+              azureSubscription: 'AzureSubscriptionConnection' # Replace with your Service Connection
+              appName: 'your-frontend-app-service-name' # Replace with your App Service name
+              containers: $(containerRegistry)/$(frontendImageRepository):$(tag)
