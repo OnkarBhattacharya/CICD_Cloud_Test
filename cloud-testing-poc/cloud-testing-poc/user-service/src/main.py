@@ -13,7 +13,8 @@ app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
 app.register_blueprint(user_bp, url_prefix='/api')
 
 # uncomment if you need to use database
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db').replace('\\', '/')}"
+_db_path = os.path.join(os.path.dirname(__file__), 'database', 'app.db').replace('\\', '/')
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{_db_path}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
@@ -37,4 +38,4 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=os.getenv('FLASK_DEBUG', '').lower() in ('1', 'true'))

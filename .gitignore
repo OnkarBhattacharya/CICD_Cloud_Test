@@ -1,3 +1,19 @@
-/frontend-git-backup
-/user-services/git-backup/
-$null
+# Raw VCS metadata backups must never be committed
+/frontend-git-backup/
+/user-service-git-backup/
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Local databases
+*.db
+
+# Test artifacts
+test-results.xml
+junit/

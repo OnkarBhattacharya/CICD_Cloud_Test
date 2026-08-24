@@ -102,8 +102,12 @@ The PoC consists of:
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd cloud-testing-poc
+   cd CICD_Cloud_Test/cloud-testing-poc/cloud-testing-poc
    ```
+
+   > Note: the application code lives under `cloud-testing-poc/cloud-testing-poc/`
+   > (`user-service/`, `frontend/`, `e2e-tests/`). All commands below assume you
+   > are in that directory.
 
 2. **Set up the backend (create venv and install deps)**
    ```bash
@@ -258,7 +262,7 @@ Notes:
 - In VS Code, select the venv via "Python: Select Interpreter" so the integrated terminal and test runner use the same environment.
 
 
-### Running with Docker Compose (from userßservice, i.e backend)
+### Running with Docker Compose (from user-service, i.e backend)
 ```bash
 # start Docker Desktop app
 Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"

@@ -129,8 +129,9 @@ function App() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Username</label>
+                <label htmlFor="username" className="block text-sm font-medium mb-2">Username</label>
                 <Input
+                  id="username"
                   type="text"
                   placeholder="Enter username"
                   value={formData.username}
@@ -139,8 +140,9 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium mb-2">Email</label>
                 <Input
+                  id="email"
                   type="email"
                   placeholder="Enter email"
                   value={formData.email}
@@ -188,6 +190,7 @@ function App() {
                       variant="outline"
                       onClick={() => handleEdit(user)}
                       disabled={loading}
+                      aria-label={`Edit ${user.username}`}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -197,6 +200,7 @@ function App() {
                       onClick={() => handleDelete(user.id)}
                       disabled={loading}
                       className="text-red-600 hover:text-red-700"
+                      aria-label={`Delete ${user.username}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
